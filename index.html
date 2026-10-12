@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ID Verification</title>
+<style>
+  :root { --bg:#224A41; --panel:#1C3B34; --line:#32645B; --ink:#EFF5F3; --muted:#B9CFC7;
+          --accent:#BBD96D; --mint:#70CD96; --warn:#F8947F; --mono:ui-monospace,"SFMono-Regular",Menlo,monospace; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+         padding:28px 16px; display:flex; flex-direction:column; align-items:center; gap:18px; }
+  html.embed body { padding:22px; }
+  html.embed .title { display:none; }
+  h1 { font-size:22px; font-weight:500; margin:0; letter-spacing:-.3px; }
+  .sub { color:var(--muted); font-size:14px; margin:4px 0 0; }
+  .grid { width:100%; max-width:900px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; }
+  @media (max-width:760px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:16px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .step { font:12px/16px var(--mono); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .step b { color:var(--mint); font-weight:400; margin-right:6px; }
+  button { font:12px/14px var(--mono); text-transform:uppercase; letter-spacing:.06em; border:1px solid var(--accent);
+           border-radius:20px; padding:10px 16px; cursor:pointer; background:var(--accent); color:var(--bg); transition:background .15s,color .15s; }
+  button:hover:not(:disabled) { background:transparent; color:var(--accent); }
+  button.ghost { background:transparent; color:var(--muted); border-color:var(--line); }
+  button.ghost:hover:not(:disabled), button.ghost.on { color:var(--ink); border-color:var(--mint); }
+  button:disabled { opacity:.45; cursor:default; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  canvas#license { width:100%; height:auto; border-radius:10px; display:block; box-shadow:0 6px 24px rgba(0,0,0,.25); }
+  .cam { position:relative; width:100%; aspect-ratio:4/3; background:#0f2621; border-radius:4px; overflow:hidden; }
+  .cam video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); display:block; }
+  .cam .oval { position:absolute; left:50%; top:47%; width:42%; aspect-ratio:3/4; transform:translate(-50%,-50%);
+               border:2px dashed rgba(112,205,150,.7); border-radius:50%; pointer-events:none; }
+  .cam .cue { position:absolute; left:0; right:0; bottom:10px; text-align:center; font:13px var(--mono); text-transform:uppercase;
+              letter-spacing:.06em; color:var(--ink); text-shadow:0 1px 3px #000; }
+  .cam .off { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
+              padding:20px; color:var(--muted); font-size:14px; }
+  .bar { height:4px; background:var(--line); border-radius:2px; overflow:hidden; }
+  .bar > i { display:block; height:100%; width:0; background:var(--mint); }
+  #result { width:100%; max-width:900px; display:none; }
+  .verdict { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .pill { font:13px var(--mono); text-transform:uppercase; letter-spacing:.06em; padding:6px 12px; border-radius:14px; }
+  .pill.ok { background:var(--mint); color:var(--bg); } .pill.bad { background:var(--warn); color:var(--bg); }
+  .why { color:var(--muted); font-size:14px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .metric .label { font:12px var(--mono); color:var(--muted); text-transform:uppercase; letter-spacing:.06em; display:flex; justify-content:space-between; }
+  .metric .label b { color:var(--ink); font-weight:400; }
+  .gauge { position:relative; height:8px; background:var(--line); border-radius:4px; margin-top:8px; }
+  .gauge > i { position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
+  .gauge > u { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink); }
+  .faces { display:flex; gap:12px; align-items:center; }
+  .faces figure { margin:0; text-align:center; font:11px var(--mono); color:var(--muted); text-transform:uppercase; }
+  .faces img { width:96px; height:96px; border-radius:4px; display:block; margin-bottom:4px; border:1px solid var(--line); }
+  #strip { display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:6px; }
+  #strip figure { margin:0; position:relative; }
+  #strip img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:3px; display:block; transform:scaleX(-1); }
+  #strip span { position:absolute; left:3px; bottom:3px; font:10px var(--mono); padding:1px 4px; border-radius:3px; background:rgba(0,0,0,.6); }
+  .meta { font:12px var(--mono); color:var(--muted); }
+  #error { color:var(--warn); font-size:14px; min-height:20px; }
+  .privacy { color:var(--muted); font-size:12px; max-width:900px; text-align:center; }
+</style>
+<script>if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");</script>
+</head>
+<body>
+  <div class="title" style="text-align:center"><h1>ID verification</h1><p class="sub">Does the face on camera match the photo on the license?</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="step"><b>1</b>Choose a license</div>
+      <canvas id="license" width="856" height="540" aria-label="Specimen driver license"></canvas>
+      <div class="row">
+        <button id="snap">Use my face</button>
+        <span class="meta">or a sample:</span>
+      </div>
+      <div class="row" id="samples"></div>
+    </div>
+    <div class="card">
+      <div class="step"><b>2</b>Record 5 seconds</div>
+      <div class="cam"><video id="video" playsinline muted></video><div class="oval"></div><div class="cue" id="cue"></div>
+        <div class="off" id="off">Camera is off. It turns on when you take a snapshot or record.</div></div>
+      <div class="bar"><i id="progress"></i></div>
+      <div class="row"><button id="record">Record &amp; verify</button><span class="meta" id="hint">Look straight, then turn your head left and right.</span></div>
+    </div>
+  </div>
+  <div id="error" role="alert"></div>
+  <div class="card" id="result">
+    <div class="step"><b>3</b>Result</div>
+    <div class="verdict"><span class="pill" id="pill"></span><span class="why" id="why"></span></div>
+    <div class="metrics">
+      <div class="metric"><div class="label">Face match <b id="simv"></b></div><div class="gauge" id="simg"><i></i><u></u></div></div>
+      <div class="metric"><div class="label">Head-turn liveness <b id="livev"></b></div><div class="gauge" id="liveg"><i></i><u></u></div></div>
+      <div class="faces"><figure><img id="fl" alt="License face">License</figure><figure><img id="fv" alt="Best video frame">Video</figure></div>
+    </div>
+    <div id="strip"></div>
+    <div class="meta" id="timing"></div>
+  </div>
+  <p class="privacy">Demo only. The license is a fictional specimen. Your snapshot and video frames are sent to this demo's
+    server for one request, compared in memory, and never stored or logged.</p>
+<script>
+const SAMPLES = [
+  { id: "avery", first: "AVERY", last: "QUINTANA", dob: "03/14/1991" },
+  { id: "jordan", first: "JORDAN", last: "OKAFOR", dob: "11/02/1968" },
+  { id: "riley", first: "RILEY", last: "NAKAMURA", dob: "07/21/2001" },
+  { id: "morgan", first: "MORGAN", last: "LINDQVIST", dob: "01/09/1958" },
+];
+const FRAMES = 15, SECONDS = 5;
+const $ = (id) => document.getElementById(id);
+const video = $("video"), lic = $("license");
+let stream = null, portrait = null, busy = false, current = null;
+
+async function camera() {
+  if (stream) return;
+  stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 720 }, facingMode: "user" }, audio: false });
+  video.srcObject = stream;
+  await video.play();
+  $("off").style.display = "none";
+}
+
+// Draws a clearly fictional "Chalkland" specimen card around a 3:4 portrait.
+function drawLicense(img, p) {
+  const c = lic.getContext("2d"), W = lic.width, H = lic.height;
+  c.clearRect(0, 0, W, H);
+  c.save();
+  c.beginPath(); c.roundRect(0, 0, W, H, 28); c.clip();
+  const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#EEFEF7"); g.addColorStop(1, "#D6F0E2");
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.strokeStyle = "rgba(39,148,103,.14)"; c.lineWidth = 1;
+  for (let k = 0; k < 26; k++) { c.beginPath(); for (let x = 0; x <= W; x += 8) { const y = 120 + k * 16 + Math.sin(x / 38 + k) * 9; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); }
+  c.fillStyle = "#224A41"; c.fillRect(0, 0, W, 96);
+  c.fillStyle = "#BBD96D"; c.font = "600 40px system-ui, sans-serif"; c.fillText("CHALKLAND", 36, 60);
+  c.fillStyle = "#EFF5F3"; c.font = "500 22px ui-monospace, monospace"; c.textAlign = "right"; c.fillText("DRIVER LICENSE", W - 36, 44);
+  c.fillStyle = "#70CD96"; c.font = "16px ui-monospace, monospace"; c.fillText("SPECIMEN · NOT A GOVERNMENT ID", W - 36, 72);
+  c.textAlign = "left";
+  const px = 36, py = 124, pw = 255, ph = 340;
+  c.fillStyle = "#c9d6d0"; c.fillRect(px, py, pw, ph);
+  if (img) {
+    const r = Math.max(pw / img.width, ph / img.height), sw = pw / r, sh = ph / r;
+    c.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, px, py, pw, ph);
+  }
+  c.strokeStyle = "#224A41"; c.lineWidth = 2; c.strokeRect(px, py, pw, ph);
+  const field = (label, value, x, y, size = 30) => {
+    c.fillStyle = "#279467"; c.font = "15px ui-monospace, monospace"; c.fillText(label, x, y);
+    c.fillStyle = "#173029"; c.font = `600 ${size}px system-ui, sans-serif`; c.fillText(value, x, y + size + 4);
+  };
+  field("DL NO.", p.dl, 320, 140, 28);
+  field("LN", p.last, 320, 214); field("FN", p.first, 320, 288);
+  field("DOB", p.dob, 320, 362, 24); field("EXP", "01/01/2099", 560, 362, 24);
+  field("CLASS", "D", 320, 432, 24); field("ISS", "CHALK DMV", 560, 432, 24);
+  c.fillStyle = "#224A41"; c.font = "italic 30px Georgia, serif"; c.fillText(`${p.first[0]}. ${p.last[0]}${p.last.slice(1).toLowerCase()}`, 40, 506);
+  c.translate(W / 2, H / 2 + 20); c.rotate(-0.32);
+  c.fillStyle = "rgba(248,148,127,.32)"; c.font = "800 120px system-ui, sans-serif"; c.textAlign = "center"; c.fillText("SPECIMEN", 0, 40);
+  c.restore();
+}
+
+function chooseLicense(img, person, id) {
+  portrait = img;
+  current = { ...person, dl: "CK" + String(Math.floor(1e7 + Math.random() * 9e7)) };
+  drawLicense(img, current);
+  document.querySelectorAll("#samples button").forEach((b) => b.classList.toggle("on", b.dataset.id === id));
+  $("snap").classList.toggle("ghost", id !== "me");
+}
+
+function frameCanvas() {
+  const c = document.createElement("canvas");
+  c.width = video.videoWidth; c.height = video.videoHeight;
+  c.getContext("2d").drawImage(video, 0, 0);
+  return c;
+}
+
+async function countdown(text, n) {
+  for (let i = n; i > 0; i--) { $("cue").textContent = `${text} ${i}`; await new Promise((r) => setTimeout(r, 700)); }
+  $("cue").textContent = "";
+}
+
+$("snap").onclick = async () => {
+  if (busy) return;
+  try {
+    busy = true; $("error").textContent = "";
+    await camera();
+    await countdown("Snapshot in", 3);
+    // Un-mirror and crop a 3:4 portrait from the middle of the frame for the license photo.
+    const f = frameCanvas(), h = f.height, w = Math.round(h * 0.75), p = document.createElement("canvas");
+    p.width = w; p.height = h;
+    p.getContext("2d").drawImage(f, (f.width - w) / 2, 0, w, h, 0, 0, w, h);
+    chooseLicense(p, { first: "YOUR", last: "SPECIMEN", dob: "01/01/2000" }, "me");
+  } catch (e) { $("error").textContent = "Camera unavailable: " + e.message; }
+  finally { busy = false; }
+};
+
+for (const s of SAMPLES) {
+  const b = document.createElement("button");
+  b.className = "ghost"; b.textContent = s.first[0] + s.first.slice(1).toLowerCase(); b.dataset.id = s.id;
+  b.onclick = () => { const img = new Image(); img.onload = () => chooseLicense(img, s, s.id); img.src = `samples/${s.id}.webp`; };
+  $("samples").appendChild(b);
+}
+
+const CUES = [[0, "Look straight"], [1.6, "Turn left"], [3.3, "Turn right"]];
+
+$("record").onclick = async () => {
+  if (busy) return;
+  if (!portrait) { $("error").textContent = "Choose a license first: use your face or pick a sample."; return; }
+  busy = true; $("error").textContent = ""; $("record").disabled = true; $("snap").disabled = true;
+  try {
+    await camera();
+    await countdown("Recording in", 3);
+    const frames = [], thumbs = [], t0 = performance.now();
+    for (let i = 0; i < FRAMES; i++) {
+      const t = (i * SECONDS) / FRAMES;
+      while ((performance.now() - t0) / 1000 < t) await new Promise((r) => setTimeout(r, 15));
+      $("cue").textContent = CUES.filter((c) => c[0] <= t).pop()[1];
+      $("progress").style.width = `${((i + 1) / FRAMES) * 100}%`;
+      const f = frameCanvas();
+      frames.push(f.toDataURL("image/jpeg", 0.8));
+      thumbs.push(frames[i]);
+    }
+    $("cue").textContent = "Verifying…";
+    const res = await fetch(new URL("verify", location.href), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ license: lic.toDataURL("image/jpeg", 0.9), frames }),
+    });
+    const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    show(body, thumbs);
+  } catch (e) {
+    $("error").textContent = e.message;
+  } finally {
+    $("cue").textContent = ""; $("progress").style.width = "0";
+    busy = false; $("record").disabled = false; $("snap").disabled = false;
+  }
+};
+
+const VERDICTS = {
+  verified: ["Verified", true, "The face on camera matches the license photo, and the head turn looks like a real, three-dimensional face."],
+  no_match: ["No match", false, "The face on camera does not match the license photo."],
+  not_live: ["Liveness failed", false, "The faces match, but the head barely turned. A photo held up to the camera looks like this. Try again and turn your head further."],
+  no_face: ["No face", false, "A face was not visible in enough of the video. Center your face in the oval and try again."],
+};
+
+function gauge(el, value, threshold, max, ok) {
+  const pct = (x) => `${Math.max(0, Math.min(1, x / max)) * 100}%`;
+  el.querySelector("i").style.width = pct(value);
+  el.querySelector("i").style.background = ok ? "var(--mint)" : "var(--warn)";
+  el.querySelector("u").style.left = pct(threshold);
+}
+
+function show(r, thumbs) {
+  const [label, ok, why] = VERDICTS[r.verdict];
+  $("result").style.display = "flex";
+  $("pill").textContent = label; $("pill").className = "pill " + (ok ? "ok" : "bad");
+  $("why").textContent = why;
+  $("simv").textContent = `${r.match.similarity.toFixed(2)} / ${r.match.threshold}`;
+  gauge($("simg"), r.match.similarity, r.match.threshold, 1, r.match.matched);
+  $("livev").textContent = `${r.liveness.yaw_range.toFixed(2)} / ${r.liveness.min_yaw_range}`;
+  gauge($("liveg"), r.liveness.yaw_range, r.liveness.min_yaw_range, 0.6, r.liveness.passed);
+  $("fl").src = r.license_face;
+  if (r.best_frame_face) $("fv").src = r.best_frame_face; else $("fv").removeAttribute("src");
+  const strip = $("strip"); strip.innerHTML = "";
+  r.frames.forEach((f, i) => {
+    const fig = document.createElement("figure"), img = new Image(), tag = document.createElement("span");
+    img.src = thumbs[i]; img.alt = `Frame ${i + 1}`;
+    tag.textContent = f.face ? f.similarity.toFixed(2) : "no face";
+    tag.style.color = f.face && f.similarity >= r.match.threshold ? "var(--mint)" : "var(--warn)";
+    fig.append(img, tag); strip.append(fig);
+  });
+  $("timing").textContent = `${r.frames.length} frames · detect + embed ${r.ms.detect_embed} ms on CPU · total ${r.ms.total} ms`;
+  $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// Start with a sample so the card is never empty.
+$("samples").firstChild.click();
+</script>
+</body>
+</html>
