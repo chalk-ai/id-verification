@@ -32,7 +32,7 @@ license photo ─┐
 ## Run it
 
 You need [`uv`](https://docs.astral.sh/uv/) and a Chalk environment. Credentials come from
-`chalk config` in the current directory. You can also set `CHALK_API_SERVER`, `CHALK_CLIENT_ID`,
+the SDK’s ambient credentials from `chalk login`. You can also set `CHALK_API_SERVER`, `CHALK_CLIENT_ID`,
 `CHALK_CLIENT_SECRET` and `CHALK_ENVIRONMENT_ID` yourself.
 
 ```bash
@@ -87,3 +87,10 @@ uv run --with chalkcompute python -c \
 
 The code is Apache-2.0. The YuNet face detector is MIT and the SFace face recognizer is
 Apache-2.0, both from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo).
+
+## Local authentication
+
+The SDK reads credentials, API host, and the selected environment from your existing
+`chalk login` in `~/.chalk.yml`, including project-scoped and default logins.
+For unattended runs, `CHALK_CLIENT_ID` and `CHALK_CLIENT_SECRET` remain supported. Where available, `--env-id`
+overrides the target environment; otherwise the SDK uses your login or environment settings.
