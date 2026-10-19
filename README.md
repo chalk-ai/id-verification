@@ -92,5 +92,5 @@ Apache-2.0, both from the [OpenCV model zoo](https://github.com/opencv/opencv_zo
 
 The SDK reads credentials, API host, and the selected environment from your existing
 `chalk login` in `~/.chalk.yml`, including project-scoped and default logins.
-For unattended runs, `CHALK_CLIENT_ID` and `CHALK_CLIENT_SECRET` remain supported. Where available, `--env-id`
-overrides the target environment; otherwise the SDK uses your login or environment settings.
+For unattended runs, `CHALK_CLIENT_ID` and `CHALK_CLIENT_SECRET` remain supported.
+The examples use the current environment selected by your Chalk login.
